@@ -46,7 +46,7 @@ decrypt_flow :-
     decrypt_file(EncryptedPath, Key, OutputPath),
     write('File decrypted successfully.').
 
-    % Encrypt a file with xor_toggle.
+% Encrypt a file with xor_toggle.
 encrypt_file(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
     string_to_charcodes(Plaintext, PT),
@@ -69,3 +69,15 @@ write_string_to_file(FilePath, String) :-
     open(FilePath, write, Stream),
     write(Stream, String),
     close(Stream).
+
+%Example usage:
+%   start.
+%   Enter E to encrypt, D to decrypt: E.
+%   Enter the plaintext file path: |: 'secret.txt'.
+%   Enter the encryption key: |: key.
+%   Enter the output file path for encrypted text: |: 'cipher.txt'.
+%   start.
+%   Enter E to encrypt, D to decrypt: D.
+%   Enter the plaintext file path: |: 'cipher.txt'.
+%   Enter the encryption key: |: wrongkey.
+%   Enter the output file path for encrypted text: |: 'decrypt.txt'.
