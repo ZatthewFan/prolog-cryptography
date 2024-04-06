@@ -21,3 +21,51 @@ charcodes_to_string(CharCodes, String) :-
 %   string_to_charcodes("test", PT), string_to_charcodes("SecretKey", K), xor_toggle(PT, K, CT), charcodes_to_string(CT, CipherText).
 %   string_to_charcodes(CIPHER_TEXT, CT), string_to_charcodes("SecretKey", K), xor_toggle(CT, K, PTDecrypted), charcodes_to_string(PTDecrypted, OriginalText).
 %   replace "CIPHER_TEXT" with the output of the first line
+
+%TODO: CHANGE
+%CLI interface
+start :-
+    write('Enter E to encrypt, D to decrypt: '), read(Operation),
+    (   Operation = 'E' -> encrypt_flow;
+        Operation = 'D' -> decrypt_flow;
+        write('Invalid option.'), nl, start).
+
+% Flow for encryption.
+encrypt_flow :-
+    write('Enter the plaintext file path: '), read(PlaintextPath),
+    write('Enter the encryption key: '), read(Key),
+    write('Enter the output file path for encrypted text: '), read(OutputPath),
+    encrypt_file(PlaintextPath, Key, OutputPath),
+    write('File encrypted successfully.').
+
+% Flow for decryption.
+decrypt_flow :-
+    write('Enter the encrypted file path: '), read(EncryptedPath),
+    write('Enter the decryption key: '), read(Key),
+    write('Enter the output file path for decrypted text: '), read(OutputPath),
+    decrypt_file(EncryptedPath, Key, OutputPath),
+    write('File decrypted successfully.').
+
+    % Encrypt a file with xor_toggle.
+encrypt_file(InputPath, Key, OutputPath) :-
+    read_file_to_string(InputPath, Plaintext, []),
+    string_to_charcodes(Plaintext, PT),
+    string_to_charcodes(Key, K),
+    xor_toggle(PT, K, CT),
+    charcodes_to_string(CT, CipherText),
+    write_string_to_file(OutputPath, CipherText).
+
+% Decrypt a file with xor_toggle.
+decrypt_file(InputPath, Key, OutputPath) :-
+    read_file_to_string(InputPath, CipherText, []),
+    string_to_charcodes(CipherText, CT),
+    string_to_charcodes(Key, K),
+    xor_toggle(CT, K, PTDecrypted),
+    charcodes_to_string(PTDecrypted, OriginalText),
+    write_string_to_file(OutputPath, OriginalText).
+
+% Helper to write a string to a file.
+write_string_to_file(FilePath, String) :-
+    open(FilePath, write, Stream),
+    write(Stream, String),
+    close(Stream).
