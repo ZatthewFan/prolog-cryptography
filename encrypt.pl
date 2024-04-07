@@ -22,7 +22,6 @@ charcodes_to_string(CharCodes, String) :-
 %   string_to_charcodes(CIPHER_TEXT, CT), string_to_charcodes("SecretKey", K), xor_toggle(CT, K, PTDecrypted), charcodes_to_string(PTDecrypted, OriginalText).
 %   replace "CIPHER_TEXT" with the output of the first line
 
-%TODO: CHANGE
 %CLI interface
 start :-
     write('Enter E to encrypt, D to decrypt: '), read(Operation),
@@ -30,7 +29,7 @@ start :-
         Operation = 'D' -> decrypt_flow;
         write('Invalid option.'), nl, start).
 
-% Flow for encryption.
+% Flow for encryption/decryption
 encrypt_flow :-
     write('Enter the plaintext file path: '), read(PlaintextPath),
     write('Enter the encryption key: '), read(Key),
@@ -38,7 +37,6 @@ encrypt_flow :-
     encrypt_file(PlaintextPath, Key, OutputPath),
     write('File encrypted successfully.').
 
-% Flow for decryption.
 decrypt_flow :-
     write('Enter the encrypted file path: '), read(EncryptedPath),
     write('Enter the decryption key: '), read(Key),
@@ -46,7 +44,7 @@ decrypt_flow :-
     decrypt_file(EncryptedPath, Key, OutputPath),
     write('File decrypted successfully.').
 
-% Encrypt a file with xor_toggle.
+%Encrypt/decrypt file with xor_toggle
 encrypt_file(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
     string_to_charcodes(Plaintext, PT),
@@ -55,7 +53,6 @@ encrypt_file(InputPath, Key, OutputPath) :-
     charcodes_to_string(CT, CipherText),
     write_string_to_file(OutputPath, CipherText).
 
-% Decrypt a file with xor_toggle.
 decrypt_file(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, CipherText, []),
     string_to_charcodes(CipherText, CT),
@@ -64,7 +61,7 @@ decrypt_file(InputPath, Key, OutputPath) :-
     charcodes_to_string(PTDecrypted, OriginalText),
     write_string_to_file(OutputPath, OriginalText).
 
-% Helper to write a string to a file.
+%Write a string to a file
 write_string_to_file(FilePath, String) :-
     open(FilePath, write, Stream),
     write(Stream, String),
@@ -83,7 +80,7 @@ write_string_to_file(FilePath, String) :-
 %   Enter the output file path for encrypted text: |: 'decrypt.txt'.
 
 
-% Splits a list into sublists of a given length, padding the last sublist if necessary.
+%Split a list into sublists, all with length given
 split_into_blocks(List, BlockSize, Blocks) :-
     split_into_blocks(List, BlockSize, Blocks, []).
 
@@ -102,10 +99,10 @@ split_into_blocks(List, BlockSize, [Block|Blocks], CurrentBlock) :-
 split_into_blocks([H|T], BlockSize, Blocks, CurrentBlock) :-
     split_into_blocks(T, BlockSize, Blocks, [H|CurrentBlock]).
 
-% Pads a block with zeroes (code for character '0' is 48) to reach the desired block size.
+%Pad a given block with zeroes
 pad_block(Block, PaddedBlock) :-
     length(Block, Len),
-    BlockSize = 8,  % Assuming block size is 8 for this example, change as needed
+    BlockSize = 8,
     PadLength is BlockSize - Len,
     findall(48, between(1, PadLength, _), Padding),
     append(Block, Padding, PaddedBlock).
@@ -115,12 +112,12 @@ pad_block(Block, PaddedBlock) :-
 %Should give:
 %   BlockStrings = ["Hello, W", "!dlro000"].
 
-% Generates an Initialization Vector (IV) of a given length (BlockSize).
+%Generates an Initialization Vector of BlockSize (using 8 in our case)
 generate_iv(BlockSize, IV) :-
     findall(Byte, (between(1, BlockSize, _), random_between(0, 255, Byte)), IV).    
     %random_between is not practical since it's not secure, but just using it for educational purposes.
 
-% Helper to convert the IV list to a string (for storage or display).
+%Helper to convert IV list to a string
 iv_to_string(IV, IVString) :-
     string_codes(IVString, IV).
 
@@ -128,14 +125,13 @@ iv_to_string(IV, IVString) :-
 %   generate_iv(8, IV), iv_to_string(IV, IVString).
 
 %CBC Encryption Algorithm
-% CBC Encrypt a list of plaintext blocks.
 cbc_encrypt(_, [], _, []).
 cbc_encrypt(KeyCodes, [PlainTextBlock|PlainTextBlocks], PrevCipherBlock, [CipherTextBlock|CipherTextBlocks]) :-
     xor_toggle(PrevCipherBlock, PlainTextBlock, XoredBlock),
     xor_toggle(XoredBlock, KeyCodes, CipherTextBlock),
     cbc_encrypt(KeyCodes, PlainTextBlocks, CipherTextBlock, CipherTextBlocks).
 
-% Modified encrypt_file to include CBC mode and IV generation.
+%Encrypt using CBC mode and IV generation
 encrypt_file_cbc(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
     string_to_charcodes(Plaintext, PT),
@@ -149,19 +145,19 @@ encrypt_file_cbc(InputPath, Key, OutputPath) :-
     charcodes_to_string(FlatCipherText, CipherText),
     write_string_to_file(OutputPath, CipherText).
 
-% CBC Decrypt a list of ciphertext blocks.
+%Decrypt a list of ciphertext blocks
 cbc_decrypt(_, [], _, []).
 cbc_decrypt(KeyCodes, [CipherTextBlock|CipherTextBlocks], PrevCipherBlock, [PlainTextBlock|PlainTextBlocks]) :-
     xor_toggle(CipherTextBlock, KeyCodes, XoredBlock),
     xor_toggle(XoredBlock, PrevCipherBlock, PlainTextBlock),
     cbc_decrypt(KeyCodes, CipherTextBlocks, CipherTextBlock, PlainTextBlocks).
 
-% Extracts the IV from the first block and then decrypts the rest in CBC mode.
+%Extract IV from first block, then decrypt the rest in CBC mode
 decrypt_file_cbc(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, CipherText, []),
     string_to_charcodes(CipherText, CT),
-    BlockSize = 8,  % Your block size
-    length(IV, BlockSize),  % Assume the IV is the first block
+    BlockSize = 8,
+    length(IV, BlockSize),  %IV is the first block
     append(IV, CipherTextBlocksFlat, CT),
     split_into_blocks(CipherTextBlocksFlat, BlockSize, CipherTextBlocks),
     string_to_charcodes(Key, K),
