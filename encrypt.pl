@@ -11,15 +11,9 @@ xor_toggle_helper([H|T], KeyCodes, [XorH|XorT], Index) :-
     NextIndex is Index + 1,
     xor_toggle_helper(T, KeyCodes, XorT, NextIndex).
 
-string_to_charcodes(String, CharCodes) :-
-    string_codes(String, CharCodes).
-
-charcodes_to_string(CharCodes, String) :-
-    string_codes(String, CharCodes).
-
 %Example usage:
-%   string_to_charcodes("test", PT), string_to_charcodes("SecretKey", K), xor_toggle(PT, K, CT), charcodes_to_string(CT, CipherText).
-%   string_to_charcodes(CIPHER_TEXT, CT), string_to_charcodes("SecretKey", K), xor_toggle(CT, K, PTDecrypted), charcodes_to_string(PTDecrypted, OriginalText).
+%   string_codes("test", PT), string_codes("SecretKey", K), xor_toggle(PT, K, CT), string_codes(CipherText, CT).
+%   string_codes(CIPHER_TEXT, CT), string_codes("SecretKey", K), xor_toggle(CT, K, PTDecrypted), string_codes(OriginalText, PTDecrypted).
 %   replace "CIPHER_TEXT" with the output of the first line
 
 %CLI interface
@@ -47,18 +41,18 @@ decrypt_flow :-
 %Encrypt/decrypt file with xor_toggle
 encrypt_file(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
-    string_to_charcodes(Plaintext, PT),
-    string_to_charcodes(Key, K),
+    string_codes(Plaintext, PT),
+    string_codes(Key, K),
     xor_toggle(PT, K, CT),
-    charcodes_to_string(CT, CipherText),
+    string_codes(CipherText, CT),
     write_string_to_file(OutputPath, CipherText).
 
 decrypt_file(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, CipherText, []),
-    string_to_charcodes(CipherText, CT),
-    string_to_charcodes(Key, K),
+    string_codes(CipherText, CT),
+    string_codes(Key, K),
     xor_toggle(CT, K, PTDecrypted),
-    charcodes_to_string(PTDecrypted, OriginalText),
+    string_codes(OriginalText, PTDecrypted),
     write_string_to_file(OutputPath, OriginalText).
 
 %Write a string to a file
@@ -80,15 +74,15 @@ write_string_to_file(FilePath, String) :-
 %   Enter the output file path for encrypted text: |: 'decrypt.txt'.
 
 
-%Split a list into sublists, all with length given
+% Split a list into sublists of a given length, padding the last sublist if necessary.
 split_into_blocks(List, BlockSize, Blocks) :-
     split_into_blocks(List, BlockSize, Blocks, []).
 
-split_into_blocks([], _, Blocks, CurrentBlock) :-
+split_into_blocks([], BlockSize, [PaddedBlock], CurrentBlock) :-
     CurrentBlock \= [],
     !,
-    pad_block(CurrentBlock, PaddedBlock),
-    reverse([PaddedBlock], Blocks).
+    reverse(CurrentBlock, ReversedCurrentBlock),
+    pad_block(ReversedCurrentBlock, BlockSize, PaddedBlock).
 split_into_blocks([], _, [], []) :- !.
 split_into_blocks(List, BlockSize, [Block|Blocks], CurrentBlock) :-
     length(CurrentBlock, Len),
@@ -99,18 +93,17 @@ split_into_blocks(List, BlockSize, [Block|Blocks], CurrentBlock) :-
 split_into_blocks([H|T], BlockSize, Blocks, CurrentBlock) :-
     split_into_blocks(T, BlockSize, Blocks, [H|CurrentBlock]).
 
-%Pad a given block with zeroes
-pad_block(Block, PaddedBlock) :-
+% Pad a given block with zeroes to reach the desired block size.
+pad_block(Block, BlockSize, PaddedBlock) :-
     length(Block, Len),
-    BlockSize = 8,
     PadLength is BlockSize - Len,
     findall(48, between(1, PadLength, _), Padding),
     append(Block, Padding, PaddedBlock).
 
 %Example usage:
-%   string_to_charcodes("Hello, World!", CharCodes), split_into_blocks(CharCodes, 8, Blocks), maplist(charcodes_to_string, Blocks, BlockStrings).
+%   string_codes("Hello World", CharCodes), split_into_blocks(CharCodes, 8, Blocks), maplist(string_codes, BlockStrings, Blocks).
 %Should give:
-%   BlockStrings = ["Hello, W", "!dlro000"].
+%   BlockStrings = ["Hello Wo", "rld00000"].
 
 %Generates an Initialization Vector of BlockSize (using 8 in our case)
 generate_iv(BlockSize, IV) :-
@@ -134,15 +127,15 @@ cbc_encrypt(KeyCodes, [PlainTextBlock|PlainTextBlocks], PrevCipherBlock, [Cipher
 %Encrypt using CBC mode and IV generation
 encrypt_file_cbc(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
-    string_to_charcodes(Plaintext, PT),
-    string_to_charcodes(Key, K),
+    string_codes(Plaintext, PT),
+    string_codes(Key, K),
     BlockSize = 8,  % Your block size here
     generate_iv(BlockSize, IV),
     split_into_blocks(PT, BlockSize, Blocks),
     cbc_encrypt(K, Blocks, IV, EncryptedBlocks),
     append([IV], EncryptedBlocks, CipherTextWithIV),
     flatten(CipherTextWithIV, FlatCipherText),
-    charcodes_to_string(FlatCipherText, CipherText),
+    string_codes(CipherText, FlatCipherText),
     write_string_to_file(OutputPath, CipherText).
 
 %Decrypt a list of ciphertext blocks
@@ -155,15 +148,15 @@ cbc_decrypt(KeyCodes, [CipherTextBlock|CipherTextBlocks], PrevCipherBlock, [Plai
 %Extract IV from first block, then decrypt the rest in CBC mode
 decrypt_file_cbc(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, CipherText, []),
-    string_to_charcodes(CipherText, CT),
+    string_codes(CipherText, CT),
     BlockSize = 8,
     length(IV, BlockSize),  %IV is the first block
     append(IV, CipherTextBlocksFlat, CT),
     split_into_blocks(CipherTextBlocksFlat, BlockSize, CipherTextBlocks),
-    string_to_charcodes(Key, K),
+    string_codes(Key, K),
     cbc_decrypt(K, CipherTextBlocks, IV, DecryptedBlocks),
     flatten(DecryptedBlocks, FlatPlainText),
-    charcodes_to_string(FlatPlainText, OriginalText),
+    string_codes(OriginalText, FlatPlainText),
     write_string_to_file(OutputPath, OriginalText).
 
 %Example usage:
