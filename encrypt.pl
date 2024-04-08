@@ -1,15 +1,15 @@
 %XOR encryption algorithm
 xor_toggle(InputTextCodes, KeyCodes, OutputTextCodes) :-
-    xor_toggle_helper(InputTextCodes, KeyCodes, OutputTextCodes, 0).
+    xor_toggle_recurse(InputTextCodes, KeyCodes, OutputTextCodes, 0).
 
-xor_toggle_helper([], _, [], _).
-xor_toggle_helper([H|T], KeyCodes, [XorH|XorT], Index) :-
+xor_toggle_recurse([], _, [], _).
+xor_toggle_recurse([H|T], KeyCodes, [XorH|XorT], Index) :-
     length(KeyCodes, KeyLen),
     KeyIndex is Index mod KeyLen,
     nth0(KeyIndex, KeyCodes, KeyChar),
     XorH is H xor KeyChar,
     NextIndex is Index + 1,
-    xor_toggle_helper(T, KeyCodes, XorT, NextIndex).
+    xor_toggle_recurse(T, KeyCodes, XorT, NextIndex).
 
 %Example usage:
 %   string_codes("test", PT), string_codes("SecretKey", K), xor_toggle(PT, K, CT), string_codes(CipherText, CT).
@@ -17,26 +17,32 @@ xor_toggle_helper([H|T], KeyCodes, [XorH|XorT], Index) :-
 %   replace "CIPHER_TEXT" with the output of the first line
 
 %CLI interface
+% start :-
+%     write("\"E.\" to encrypt, \"D.\" to decrypt: "), read(Operation), (
+%         Operation = 'E' -> encrypt_flow;
+%         Operation = 'D' -> decrypt_flow;
+%         write('Not an option.'), nl, start).
 start :-
-    write('Enter E to encrypt, D to decrypt: '), read(Operation),
-    (   Operation = 'E' -> encrypt_flow;
-        Operation = 'D' -> decrypt_flow;
-        write('Invalid option.'), nl, start).
+    write('E to encrypt, D to decrypt: '), flush_output(current_output),
+    read_line_to_string(user_input, Operation),
+    (   Operation = "E" -> encrypt_flow;
+        Operation = "D" -> decrypt_flow;
+        write('Not an option.'), nl, start).
 
-% Flow for encryption/decryption
+%Flow for encryption/decryption
 encrypt_flow :-
-    write('Enter the plaintext file path: '), read(PlaintextPath),
-    write('Enter the encryption key: '), read(Key),
-    write('Enter the output file path for encrypted text: '), read(OutputPath),
+    write("plaintext path: "), read(PlaintextPath),
+    write("encryption key: "), read(Key),
+    write("encrypted file path: "), read(OutputPath),
     encrypt_file(PlaintextPath, Key, OutputPath),
-    write('File encrypted successfully.').
+    write("Encryption successful!").
 
 decrypt_flow :-
-    write('Enter the encrypted file path: '), read(EncryptedPath),
-    write('Enter the decryption key: '), read(Key),
-    write('Enter the output file path for decrypted text: '), read(OutputPath),
+    write("encrypted file path: "), read(EncryptedPath),
+    write("decryption key: "), read(Key),
+    write("decrypted file path: "), read(OutputPath),
     decrypt_file(EncryptedPath, Key, OutputPath),
-    write('File decrypted successfully.').
+    write("Decryption successful!").
 
 %Encrypt/decrypt file with xor_toggle
 encrypt_file(InputPath, Key, OutputPath) :-
