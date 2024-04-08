@@ -81,23 +81,23 @@ write_string_to_file(FilePath, String) :-
 
 
 %Split a list into sublists of equal length
-split_into_blocks(List, BlockSize, Blocks) :-
-    split_into_blocks(List, BlockSize, Blocks, []).
+init_split_into_blocks(List, BlockSize, Blocks) :-
+    split_and_pad(List, BlockSize, Blocks, []).
 
-split_into_blocks([], BlockSize, [PaddedBlock], CurrentBlock) :-
+pad_final_block([], BlockSize, [PaddedBlock], CurrentBlock) :-
     CurrentBlock \= [],
     !,      %cut to prevent backtracking
     reverse(CurrentBlock, ReversedCurrentBlock),        %reverse CurrentBlock because elements were added inversely
     pad_block(ReversedCurrentBlock, BlockSize, PaddedBlock).
-split_into_blocks([], _, [], []) :- !.      %base case
-split_into_blocks(List, BlockSize, [Block|Blocks], CurrentBlock) :-
+finish_split([], _, [], []) :- !.      %base case
+process_full_block(List, BlockSize, [Block|Blocks], CurrentBlock) :-
     length(CurrentBlock, Len),
     Len =:= BlockSize,  %check if current block has reached specified block size
     !,
     reverse(CurrentBlock, Block),
-    split_into_blocks(List, BlockSize, Blocks, []).
-split_into_blocks([H|T], BlockSize, Blocks, CurrentBlock) :-
-    split_into_blocks(T, BlockSize, Blocks, [H|CurrentBlock]).
+    split_and_pad(List, BlockSize, Blocks, []).
+split_and_pad([H|T], BlockSize, Blocks, CurrentBlock) :-
+    split_and_pad(T, BlockSize, Blocks, [H|CurrentBlock]).
 
 % Pad a given block with zeroes to reach the desired block size.
 pad_block(Block, BlockSize, PaddedBlock) :-
