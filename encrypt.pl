@@ -160,5 +160,7 @@ decrypt_file_cbc(InputPath, Key, OutputPath) :-
     write_string_to_file(OutputPath, OriginalText).
 
 %Example usage:
-%   ?- encrypt_file_cbc('plaintext.txt', 'mysecretkey', 'cipher.txt').
-%   ?- decrypt_file_cbc('cipher.txt', 'mysecretkey', 'decrypted.txt').
+%   encrypt_file_cbc('plaintext.txt', 'mysecretkey', 'cipher.txt').
+%   OR
+%   encrypt_file_cbc('plaintext.txt', 'mysecretkey', 'cipher.txt').
+%   decrypt_file_cbc('cipher.txt', 'mysecretkey', 'decrypted.txt').
