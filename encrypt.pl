@@ -80,19 +80,19 @@ write_string_to_file(FilePath, String) :-
 %   Enter the output file path for encrypted text: |: 'decrypt.txt'.
 
 
-% Split a list into sublists of a given length, padding the last sublist if necessary.
+%Split a list into sublists of equal length
 split_into_blocks(List, BlockSize, Blocks) :-
     split_into_blocks(List, BlockSize, Blocks, []).
 
 split_into_blocks([], BlockSize, [PaddedBlock], CurrentBlock) :-
     CurrentBlock \= [],
-    !,
-    reverse(CurrentBlock, ReversedCurrentBlock),
+    !,      %cut to prevent backtracking
+    reverse(CurrentBlock, ReversedCurrentBlock),        %reverse CurrentBlock because elements were added inversely
     pad_block(ReversedCurrentBlock, BlockSize, PaddedBlock).
-split_into_blocks([], _, [], []) :- !.
+split_into_blocks([], _, [], []) :- !.      %base case
 split_into_blocks(List, BlockSize, [Block|Blocks], CurrentBlock) :-
     length(CurrentBlock, Len),
-    Len =:= BlockSize,
+    Len =:= BlockSize,  %check if current block has reached specified block size
     !,
     reverse(CurrentBlock, Block),
     split_into_blocks(List, BlockSize, Blocks, []).
@@ -108,6 +108,7 @@ pad_block(Block, BlockSize, PaddedBlock) :-
 
 %Example usage:
 %   string_codes("Hello World", CharCodes), split_into_blocks(CharCodes, 8, Blocks), maplist(string_codes, BlockStrings, Blocks).
+%   string_codes("Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.", CharCodes), split_into_blocks(CharCodes, 8, Blocks), maplist(string_codes, BlockStrings, Blocks).
 %Should give:
 %   BlockStrings = ["Hello Wo", "rld00000"].
 
