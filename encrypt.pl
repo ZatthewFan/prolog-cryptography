@@ -80,24 +80,28 @@ write_string_to_file(FilePath, String) :-
 %   Enter the output file path for encrypted text: |: 'decrypt.txt'.
 
 
-%Split a list into sublists of equal length
+%Split a list into sublists, each of equal length
 init_split_into_blocks(List, BlockSize, Blocks) :-
     split_and_pad(List, BlockSize, Blocks, []).
 
+%Reached end of input list and CurrentBlock is not empty, so need padding
 pad_final_block([], BlockSize, [PaddedBlock], CurrentBlock) :-
     CurrentBlock \= [],
     !,      %cut to prevent backtracking
     reverse(CurrentBlock, ReversedCurrentBlock),        %reverse CurrentBlock because elements were added inversely
     pad_block(ReversedCurrentBlock, BlockSize, PaddedBlock).
+
 finish_split([], _, [], []) :- !.      %base case
+
 process_full_block(List, BlockSize, [Block|Blocks], CurrentBlock) :-
     length(CurrentBlock, Len),
     Len =:= BlockSize,  %check if current block has reached specified block size
     !,
     reverse(CurrentBlock, Block),
     split_and_pad(List, BlockSize, Blocks, []).
+
 split_and_pad([H|T], BlockSize, Blocks, CurrentBlock) :-
-    split_and_pad(T, BlockSize, Blocks, [H|CurrentBlock]).
+    split_and_pad(T, BlockSize, Blocks, [H|CurrentBlock]). %Move current head of the list to CurrentBlock, then recurse
 
 % Pad a given block with zeroes to reach the desired block size.
 pad_block(Block, BlockSize, PaddedBlock) :-
@@ -112,17 +116,12 @@ pad_block(Block, BlockSize, PaddedBlock) :-
 %Should give:
 %   BlockStrings = ["Hello Wo", "rld00000"].
 
-%Generates an Initialization Vector of BlockSize (using 8 in our case)
+%Generates an Initialization Vector of BlockSize (8 in our case)
 generate_iv(BlockSize, IV) :-
     findall(Byte, (between(1, BlockSize, _), random_between(0, 255, Byte)), IV).    
     %random_between is not practical since it's not secure, but just using it for educational purposes.
-
-%Helper to convert IV list to a string
-iv_to_string(IV, IVString) :-
-    string_codes(IVString, IV).
-
 %Example usage:
-%   generate_iv(8, IV), iv_to_string(IV, IVString).
+%   generate_iv(8, IV), string_codes(IVString, IV).
 
 %CBC Encryption Algorithm
 cbc_encrypt(_, [], _, []).
@@ -136,7 +135,7 @@ encrypt_file_cbc(InputPath, Key, OutputPath) :-
     read_file_to_string(InputPath, Plaintext, []),
     string_codes(Plaintext, PT),
     string_codes(Key, K),
-    BlockSize = 8,  % Your block size here
+    BlockSize = 8,
     generate_iv(BlockSize, IV),
     split_into_blocks(PT, BlockSize, Blocks),
     cbc_encrypt(K, Blocks, IV, EncryptedBlocks),
