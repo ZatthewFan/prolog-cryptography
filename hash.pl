@@ -90,23 +90,39 @@ pad_file(InputFile, Result) :-
     length(Content, ContentBytes),
     ContentBits is ContentBytes * 8,
 
+    % create padding that encodes the length of InputFile's content as a 64 bit integer
+    % CBB means ContentBitsBinary
+    decimal_to_binary(ContentBits, ContentBitsBinary),
+    length(ContentBitsBinary, LengthCBB),
+    PaddingLengthCBB is 64 - LengthCBB,
+    pad_with_zeros_front(PaddingLengthCBB, ContentBitsBinary, PaddedContentBitsBinary),
+
     % Convert text file to binary format
     ascii_to_decimal(Content, DecimalContent),
     decimals_to_binary(DecimalContent, BinaryContent),
     flatten_list(BinaryContent, BinaryContentFlat),
 
-    % calculate the number of padding bytes needed; -1 is compensation for the 1 bit, -64 is so that is it 64 bits away from the nearest multiple of 512
-    round_up_to_512_multiple(ContentBits, ZeroPadLength),
-    PaddingLengthZeros is ZeroPadLength - ContentBits - 1 - 64,
+    % calculate the number of padding bytes needed
+    round_up_to_512_multiple(ContentBits, TotalLengthAfterPad),
     
-    % create padding with bit 1 followed by 0 until it reaches the desired padding length
-    pad_with_zeros(PaddingLengthZeros, [1], ZeroPad),
-
-    % create padding that encodes the length of InputFile's content as a 64 bit integer
-    decimal_to_binary(ContentBits, ContentBitsBinary),
-    length(ContentBitsBinary, LengthCBB),
-    PaddingLengthCBB is 64 - LengthCBB,
-    pad_with_zeros_front(PaddingLengthCBB, ContentBitsBinary, PaddedContentBitsBinary),
+    % check if there's enough room for ContentBits + 64 and if there isn't then allocate more space for the padding
+    (TotalLengthAfterPad < (ContentBits + 64) -> 
+        ActualTotalLengthAfterPad is TotalLengthAfterPad + 512
+    ; 
+        ActualTotalLengthAfterPad is TotalLengthAfterPad
+    ),
+    
+    % structure of padding is {ContentBits} + {(1-bit) + 0-bits until 64 bits away from nearest multiple of 512} + {length of ContentBits encoded as a 64-bit int}
+    PaddingLengthZeros is ActualTotalLengthAfterPad - (ContentBits + 64),
+    
+    % determines the padding length and creates a padding with an inital 1 followed by the necessary amount of 0s
+    (PaddingLengthZeros =:= 0 ->
+        ZeroPad = []
+    ;
+        (PaddingLengthZerosMinusOne is PaddingLengthZeros - 1,
+            pad_with_zeros(PaddingLengthZerosMinusOne, [1], ZeroPad)
+        )
+    ),
 
     % combine the padding
     append(ZeroPad, PaddedContentBitsBinary, BinaryPadding),
@@ -116,5 +132,10 @@ pad_file(InputFile, Result) :-
 
 partition_file_bits(InputFile, Result) :-
     pad_file(InputFile, Bits),
+    % 512-bit chunks
     split_into_groups(512, Bits, ChunkedResult),
+    % split each 512-bit chunks into 32-bit words
     maplist(split_into_groups(32), ChunkedResult, Result).
+
+% % TODO
+% extend_80_words(InputFile, ExtendedWords) :-
