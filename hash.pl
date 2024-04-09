@@ -1,16 +1,11 @@
-% % initial hash values
+% This is an implementation of SHA-1 Hash Function
+% usage: 
+% initial hash values
 h0(0x67452301).
 h1(0xefcdab89).
 h2(0x98badcfe).
 h3(0x10325476).
 h4(0xc3d2e1f0).
-
-% N groups
-split_into_chunks(_, [], []).
-split_into_chunks(N, List, [Chunk|Chunks]) :-
-    length(Chunk, N),
-    append(Chunk, Rest, List),
-    split_into_chunks(N, Rest, Chunks).
 
 % N is the desired length
 pad_with_zeros(N, List, Result) :-
@@ -81,6 +76,13 @@ flatten_list([H|T], FlatList) :-
     flatten_list(T, Rest),
     append(H, Rest, FlatList).
 
+% N groups
+split_into_groups(_, [], []).
+split_into_groups(N, List, [Chunk|Chunks]) :-
+    length(Chunk, N),
+    append(Chunk, Rest, List),
+    split_into_groups(N, Rest, Chunks).
+
 % preprocessing
 pad_file(InputFile, Result) :-
     % read file and get length
@@ -108,11 +110,11 @@ pad_file(InputFile, Result) :-
 
     % combine the padding
     append(ZeroPad, PaddedContentBitsBinary, BinaryPadding),
-    % binary_to_decimal(BinaryPadding, DecimalPadding),
-    % decimal_to_ascii(DecimalPadding, AsciiPadding),
 
     % append the padding to InputFile's content
     append(BinaryContentFlat, BinaryPadding, Result).
-    
-    % % write to OutputFile   NOTE: temporary only, should keep the BITS instead of writing to file
-    % write_ascii_to_file(OutputFile, Result).
+
+partition_file_bits(InputFile, Result) :-
+    pad_file(InputFile, Bits),
+    split_into_groups(512, Bits, ChunkedResult),
+    maplist(split_into_groups(32), ChunkedResult, Result).
