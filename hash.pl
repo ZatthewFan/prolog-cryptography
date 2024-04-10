@@ -130,12 +130,44 @@ pad_file(InputFile, Result) :-
     % append the padding to InputFile's content
     append(BinaryContentFlat, BinaryPadding, Result).
 
-partition_file_bits(InputFile, Result) :-
-    pad_file(InputFile, Bits),
+partition_file_bits(Bits, Result) :-
     % 512-bit chunks
     split_into_groups(512, Bits, ChunkedResult),
     % split each 512-bit chunks into 32-bit words
     maplist(split_into_groups(32), ChunkedResult, Result).
 
-% % TODO
-% extend_80_words(InputFile, ExtendedWords) :-
+loop_chunks(0, Chunks, Chunks).
+loop_chunks(WordIndex, Chunks, Result) :-
+    WordIndex > 0,
+    nth0(WordIndex, Chunks, Word),
+    extend_word_to_80(Word, ExtendedWord),
+    Next is WordIndex - 1,
+    loop_chunks(Next, Chunks, Result).
+
+% extend_word_to_80(Word, Result) :-
+
+
+% % Chunk[Index] as Word
+% nth0(Index, Chunk, Word).
+
+xor_words(WordA, WordB, Result) :-
+    maplist(xor_bits, WordA, WordB, Result).
+
+xor_bits(BitA, BitB, Result) :-
+    Result is BitA xor BitB.
+
+left_rotate(_, [], []).
+left_rotate(0, List, List).
+left_rotate(N, [H|T], Result) :-
+    N > 0,
+    append(T, [H], RotatedTail),
+    Next is N - 1,
+    left_rotate(Next, RotatedTail, Result).
+
+sha1_checksum(InputFile, Checksum) :- 
+    pad_file(InputFile, PaddedFileBits),
+    partition_file_bits(PaddedFileBits, PartitionedBits),
+
+    % loops through all the chunks of 16x 32-bit words
+    length(ParitionedBits, NumChunks),
+    loop_chunks(NumChunks, PartitionedBits, Extended80).
