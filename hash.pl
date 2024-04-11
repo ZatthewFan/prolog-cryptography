@@ -9,6 +9,8 @@ h2(0x98badcfe).
 h3(0x10325476).
 h4(0xc3d2e1f0).
 
+
+% <--------------------------------------------------utils-------------------------------------------------->
 % N is the desired length
 pad_with_zeros(N, List, Result) :-
     length(Zeros, N),
@@ -87,6 +89,21 @@ split_into_groups(N, List, [Chunk|Chunks]) :-
     length(Chunk, N),
     append(Chunk, Rest, List),
     split_into_groups(N, Rest, Chunks).
+
+xor_words(WordA, WordB, Result) :-
+    maplist(xor_bits, WordA, WordB, Result).
+
+xor_bits(BitA, BitB, Result) :-
+    Result is BitA xor BitB.
+
+left_rotate(_, [], []).
+left_rotate(0, List, List).
+left_rotate(N, [H|T], Result) :-
+    N > 0,
+    append(T, [H], RotatedTail),
+    Next is N - 1,
+    left_rotate(Next, RotatedTail, Result).
+% <--------------------------------------------------------------------------------------------------------->
 
 % preprocessing
 pad_file(InputFile, Result) :-
@@ -167,24 +184,6 @@ extend_to_80_words(N, Chunk, Result) :-
     Next is N + 1,
     extend_to_80_words(Next, ExtendedChunk, Result).
 
-
-% % Chunk[Index] as Word
-% nth0(Index, Chunk, Word).
-
-xor_words(WordA, WordB, Result) :-
-    maplist(xor_bits, WordA, WordB, Result).
-
-xor_bits(BitA, BitB, Result) :-
-    Result is BitA xor BitB.
-
-left_rotate(_, [], []).
-left_rotate(0, List, List).
-left_rotate(N, [H|T], Result) :-
-    N > 0,
-    append(T, [H], RotatedTail),
-    Next is N - 1,
-    left_rotate(Next, RotatedTail, Result).
-
 if_clause(Index, B, C, D, F, K) :-
     Index >= 0,
     Index =< 19,
@@ -247,14 +246,14 @@ loop_chunks(Index, Chunks, H0, H1, H2, H3, H4) :-
 
     main_loop(0, ExtendedChunk, A, B, C, D, E),
 
-    NewH0 is H0 + A,
-    NewH1 is H1 + B,
-    NewH2 is H2 + C,
-    NewH3 is H3 + D,
-    NewH4 is H4 + E,
+    NextH0 is H0 + A,
+    NextH1 is H1 + B,
+    NextH2 is H2 + C,
+    NextH3 is H3 + D,
+    NextH4 is H4 + E,
 
     append(Chunks, [ExtendedChunk], ExtendedChunks),
-    loop_chunks(ChunkIndex, ExtendedChunks, NewH0, NewH1, NewH2, NewH3, NewH4).
+    loop_chunks(ChunkIndex, ExtendedChunks, NextH0, NextH1, NextH2, NextH3, NextH4).
 
 sha1_checksum(InputFile, Hash) :- 
     pad_file(InputFile, PaddedFileBits),
