@@ -137,14 +137,39 @@ partition_file_bits(Bits, Result) :-
     maplist(split_into_groups(32), ChunkedResult, Result).
 
 loop_chunks(0, Chunks, Chunks).
-loop_chunks(WordIndex, Chunks, Result) :-
-    WordIndex > 0,
-    nth0(WordIndex, Chunks, Word),
-    extend_word_to_80(Word, ExtendedWord),
-    Next is WordIndex - 1,
-    loop_chunks(Next, Chunks, Result).
+loop_chunks(Index, Chunks, Result) :-
+    Index > 0,
+    ChunkIndex is Index - 1,
+    nth0(ChunkIndex, Chunks, Chunk),
+    extend_to_80_words(Chunk, ExtendedChunk),
+    append(Chunks, [ExtendedChunk], ExtendedChunks),
+    loop_chunks(ChunkIndex, ExtendedChunks, Result).
 
-% extend_word_to_80(Word, Result) :-
+extend_to_80_words(Chunk, Result) :-
+    extend_to_80_words(16, Chunk, Result).
+extend_to_80_words(80, Chunk, Chunk).
+extend_to_80_words(N, Chunk, Result) :-
+    N < 80,
+
+    IndexA is N - 3,
+    IndexB is N - 8,
+    IndexC is N - 14,
+    IndexD is N - 16,
+
+    nth0(IndexA, Chunk, WordA),
+    nth0(IndexB, Chunk, WordB),
+    nth0(IndexC, Chunk, WordC),
+    nth0(IndexD, Chunk, WordD),
+
+    xor_words(WordA, WordB, XorA),
+    xor_words(XorA, WordC, XorB),
+    xor_words(XorB, WordD, XorC),
+
+    left_rotate(1, XorC, NewWord),
+
+    append(Chunk, [NewWord], ExtendedChunk),
+    Next is N + 1,
+    extend_to_80_words(Next, ExtendedChunk, Result).
 
 
 % % Chunk[Index] as Word
@@ -164,10 +189,27 @@ left_rotate(N, [H|T], Result) :-
     Next is N - 1,
     left_rotate(Next, RotatedTail, Result).
 
+% main_loop(80, A, B, C, D, E, Result).
+% main_loop(Index, X) :-
+%     (Index =< 19 ->
+%         F is (B /\ C) \/ (\B /\ D),
+%         K is 0x5A827999,
+
+
 sha1_checksum(InputFile, Checksum) :- 
     pad_file(InputFile, PaddedFileBits),
     partition_file_bits(PaddedFileBits, PartitionedBits),
 
     % loops through all the chunks of 16x 32-bit words
-    length(ParitionedBits, NumChunks),
-    loop_chunks(NumChunks, PartitionedBits, Extended80).
+    length(PartitionedBits, NumChunks),
+    loop_chunks(NumChunks, PartitionedBits, Extended80),
+
+    A is h0(X),
+    B is h1(X),
+    C is h2(X),
+    D is h3(X),
+    E is h4(X),
+
+    main_loop(0, A, B, C, D, E, Checksum).
+
+
