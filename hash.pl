@@ -1,4 +1,6 @@
 % This is an implementation of SHA-1 Hash Function
+% NOTE: I did not finish my code in time, however, Jerry finished his part in time so if a penalty for late code must be issued, do not penalize him.
+%
 % usage: 
 %   SHA-1: sha1_checksum('<filename>', Hash).
 % 
@@ -238,7 +240,6 @@ loop_chunks(Index, Stop, Chunks, H0, H1, H2, H3, H4) :-
     Index < Stop,
     nth0(Index, Chunks, Chunk),
     extend_to_80_words(Chunk, ExtendedChunk),
-    append(Chunks, [ExtendedChunk], ExtendedChunks),
 
     A is H0,
     B is H1,
@@ -254,6 +255,7 @@ loop_chunks(Index, Stop, Chunks, H0, H1, H2, H3, H4) :-
     NextH3 is H3 + D,
     NextH4 is H4 + E,
 
+    append(Chunks, [ExtendedChunk], ExtendedChunks),
     NextIndex is Index + 1,
     loop_chunks(NextIndex, Stop, ExtendedChunks, NextH0, NextH1, NextH2, NextH3, NextH4).
 
