@@ -221,22 +221,24 @@ main_loop(Index, Word, A, B, C, D, E) :-
     Temp is DecimalRBA + F + E + K + WordAtIndexDecimal,
     NextE is D,
     NextD is C,
+
     % C = B rotated to the left by 30
     decimal_to_binary(B, BinaryB),
     left_rotate(30, BinaryB, BinaryC),
     binary_to_decimal(BinaryC, NextC),
+
     NextB is A,
     NextA is Temp,
 
     NextIndex is Index + 1,
     main_loop(NextIndex, Word, NextA, NextB, NextC, NextD, NextE).
 
-loop_chunks(0, _, _, _, _, _, _).
-loop_chunks(Index, Chunks, H0, H1, H2, H3, H4) :-
-    Index > 0,
-    ChunkIndex is Index - 1,
-    nth0(ChunkIndex, Chunks, Chunk),
+loop_chunks(Stop, Stop, _, _, _, _, _, _).
+loop_chunks(Index, Stop, Chunks, H0, H1, H2, H3, H4) :-
+    Index < Stop,
+    nth0(Index, Chunks, Chunk),
     extend_to_80_words(Chunk, ExtendedChunk),
+    append(Chunks, [ExtendedChunk], ExtendedChunks),
 
     A is H0,
     B is H1,
@@ -252,14 +254,13 @@ loop_chunks(Index, Chunks, H0, H1, H2, H3, H4) :-
     NextH3 is H3 + D,
     NextH4 is H4 + E,
 
-    append(Chunks, [ExtendedChunk], ExtendedChunks),
-    loop_chunks(ChunkIndex, ExtendedChunks, NextH0, NextH1, NextH2, NextH3, NextH4).
+    NextIndex is Index + 1,
+    loop_chunks(NextIndex, Stop, ExtendedChunks, NextH0, NextH1, NextH2, NextH3, NextH4).
 
 sha1_checksum(InputFile, Hash) :- 
     pad_file(InputFile, PaddedFileBits),
     partition_file_bits(PaddedFileBits, PartitionedBits),
 
-    % loops through all the chunks of 16x 32-bit words
     length(PartitionedBits, NumChunks),
     
     % initial constants for loop
@@ -269,7 +270,8 @@ sha1_checksum(InputFile, Hash) :-
     h3(H3),
     h4(H4),
 
-    loop_chunks(NumChunks, PartitionedBits, H0, H1, H2, H3, H4),
+    loop_chunks(0, NumChunks, PartitionedBits, H0, H1, H2, H3, H4),
 
+    % final hash calcs
     HH is (H0 << 128) \/ (H1 << 96) \/ (H2 << 64) \/ (H3 << 32) \/ H4,
     format(atom(Hash), '~16r', [HH]).
