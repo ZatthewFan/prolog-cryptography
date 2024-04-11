@@ -1,5 +1,7 @@
 % This is an implementation of SHA-1 Hash Function
 % usage: 
+%   SHA-1: sha1_checksum('<filename>', Hash).
+% 
 % initial hash values
 h0(0x67452301).
 h1(0xefcdab89).
@@ -32,10 +34,13 @@ read_stream(Stream, [Char|Rest]) :-
     get_char(Stream, Char),
     read_stream(Stream, Rest).
 
-binary_to_decimal([], []).
-binary_to_decimal([Bin1, Bin2, Bin3, Bin4, Bin5, Bin6, Bin7, Bin8|Rest], [Decimal|Decimals]) :-
-    Decimal is Bin1*128 + Bin2*64 + Bin3*32 + Bin4*16 + Bin5*8 + Bin6*4 + Bin7*2 + Bin8*1,
-    binary_to_decimal(Rest, Decimals).
+% from ChatGPT
+binary_to_decimal(BinaryList, Decimal) :-
+    binary_to_decimal(BinaryList, 0, Decimal).
+binary_to_decimal([], Decimal, Decimal).
+binary_to_decimal([Bit|Bits], Acc, Decimal) :-
+    NewAcc is (Acc << 1) + Bit,
+    binary_to_decimal(Bits, NewAcc, Decimal).
 
 % converts a single decimal to binary
 decimal_to_binary(0, [0]).
@@ -136,15 +141,6 @@ partition_file_bits(Bits, Result) :-
     % split each 512-bit chunks into 32-bit words
     maplist(split_into_groups(32), ChunkedResult, Result).
 
-loop_chunks(0, Chunks, Chunks).
-loop_chunks(Index, Chunks, Result) :-
-    Index > 0,
-    ChunkIndex is Index - 1,
-    nth0(ChunkIndex, Chunks, Chunk),
-    extend_to_80_words(Chunk, ExtendedChunk),
-    append(Chunks, [ExtendedChunk], ExtendedChunks),
-    loop_chunks(ChunkIndex, ExtendedChunks, Result).
-
 extend_to_80_words(Chunk, Result) :-
     extend_to_80_words(16, Chunk, Result).
 extend_to_80_words(80, Chunk, Chunk).
@@ -189,27 +185,92 @@ left_rotate(N, [H|T], Result) :-
     Next is N - 1,
     left_rotate(Next, RotatedTail, Result).
 
-% main_loop(80, A, B, C, D, E, Result).
-% main_loop(Index, X) :-
-%     (Index =< 19 ->
-%         F is (B /\ C) \/ (\B /\ D),
-%         K is 0x5A827999,
+if_clause(Index, B, C, D, F, K) :-
+    Index >= 0,
+    Index =< 19,
+    F is (B /\ C) \/ ((\B) /\ D),
+    K is 0x5a827999.
 
+if_clause(Index, B, C, D, F, K) :-
+    Index >= 20,
+    Index =< 39,
+    F is B xor C xor D,
+    K is 0x6ed9eba1.
 
-sha1_checksum(InputFile, Checksum) :- 
+if_clause(Index, B, C, D, F, K) :-
+    Index >= 40,
+    Index =< 59,
+    F is (B /\ C) \/ (B /\ D) \/ (C /\ D),
+    K is 0x8f1bbcdc.
+
+if_clause(Index, B, C, D, F, K) :-
+    Index >= 60,
+    Index =< 79,
+    F is B xor C xor D,
+    K is 0xca62c1d6.
+
+main_loop(80, _, _, _, _, _, _).
+main_loop(Index, Word, A, B, C, D, E) :-
+    if_clause(Index, B, C, D, F, K),
+
+    decimal_to_binary(A, BinaryA),
+    left_rotate(5, BinaryA, RotatedBinaryA),
+    binary_to_decimal(RotatedBinaryA, DecimalRBA),
+    nth0(Index, Word, WordAtIndexBinary),
+    binary_to_decimal(WordAtIndexBinary, WordAtIndexDecimal),
+    
+    Temp is DecimalRBA + F + E + K + WordAtIndexDecimal,
+    NextE is D,
+    NextD is C,
+    % C = B rotated to the left by 30
+    decimal_to_binary(B, BinaryB),
+    left_rotate(30, BinaryB, BinaryC),
+    binary_to_decimal(BinaryC, NextC),
+    NextB is A,
+    NextA is Temp,
+
+    NextIndex is Index + 1,
+    main_loop(NextIndex, Word, NextA, NextB, NextC, NextD, NextE).
+
+loop_chunks(0, _, _, _, _, _, _).
+loop_chunks(Index, Chunks, H0, H1, H2, H3, H4) :-
+    Index > 0,
+    ChunkIndex is Index - 1,
+    nth0(ChunkIndex, Chunks, Chunk),
+    extend_to_80_words(Chunk, ExtendedChunk),
+
+    A is H0,
+    B is H1,
+    C is H2,
+    D is H3,
+    E is H4,
+
+    main_loop(0, ExtendedChunk, A, B, C, D, E),
+
+    NewH0 is H0 + A,
+    NewH1 is H1 + B,
+    NewH2 is H2 + C,
+    NewH3 is H3 + D,
+    NewH4 is H4 + E,
+
+    append(Chunks, [ExtendedChunk], ExtendedChunks),
+    loop_chunks(ChunkIndex, ExtendedChunks, NewH0, NewH1, NewH2, NewH3, NewH4).
+
+sha1_checksum(InputFile, Hash) :- 
     pad_file(InputFile, PaddedFileBits),
     partition_file_bits(PaddedFileBits, PartitionedBits),
 
     % loops through all the chunks of 16x 32-bit words
     length(PartitionedBits, NumChunks),
-    loop_chunks(NumChunks, PartitionedBits, Extended80),
+    
+    % initial constants for loop
+    h0(H0),
+    h1(H1),
+    h2(H2),
+    h3(H3),
+    h4(H4),
 
-    A is h0(X),
-    B is h1(X),
-    C is h2(X),
-    D is h3(X),
-    E is h4(X),
+    loop_chunks(NumChunks, PartitionedBits, H0, H1, H2, H3, H4),
 
-    main_loop(0, A, B, C, D, E, Checksum).
-
-
+    HH is (H0 << 128) \/ (H1 << 96) \/ (H2 << 64) \/ (H3 << 32) \/ H4,
+    format(atom(Hash), '~16r', [HH]).
