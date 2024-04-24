@@ -1,5 +1,4 @@
 % This is an implementation of SHA-1 Hash Function
-% NOTE: I did not finish my code in time, however, Jerry finished his part in time so if a penalty for late code must be issued, do not penalize him.
 %
 % usage: 
 %   SHA-1: sha1_checksum('<filename>', Hash).
